@@ -14,8 +14,8 @@ options = webdriver.ChromeOptions()
 options.add_argument("--start-maximized")
 
 # Download folder: project directory / epubs
-download_dir = os.path.join(os.getcwd(), "epubs")
-os.makedirs(download_dir, exist_ok=True)
+download_dir = os.path.join("../../../data", "raw_data")
+# os.makedirs(download_dir, exist_ok=True)
 prefs = {"download.default_directory": download_dir,
          "download.prompt_for_download": False,
          "download.directory_upgrade": True,
