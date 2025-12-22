@@ -1,41 +1,74 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import re
 
-model_name = "Qwen/Qwen2.5-3B-Instruct"
 
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForCausalLM.from_pretrained(
-    model_name,
+    MODEL_NAME,
     torch_dtype=torch.float16,
     device_map="auto"
 )
+model.eval()
 
-def compute_max_new_tokens(text):
-    base = 100
-    increment = 10
-    per_chars = 1000
-    cap = 250
-    return min(base + (len(text) // per_chars) * increment, cap)
+# -----------------------------
+# Helpers
+# -----------------------------
 
-def summarize(text: str, act_head: str, subsection_head: str, system_prompt: str):
-    max_tokens = compute_max_new_tokens(text)
+def normalize_heading(h: str) -> str:
+    """
+    Remove leading section numbers and excess whitespace.
+    """
+    return re.sub(r"^\s*\d+[A-Z]*\s*", "", h).strip()
+
+def format_headings(title: str, items: list[str], max_items: int = 20) -> str:
+    """
+    Normalize and cap headings to avoid prompt bloat.
+    """
+    cleaned = [normalize_heading(h) for h in items if h.strip()]
+    cleaned = cleaned[:max_items]
+    lines = [f"- {h}" for h in cleaned]
+    return f"{title}:\n" + "\n".join(lines)
+
+
+def summarize(
+    jurisdiction: str,
+    act: str,
+    act_headings: list[str],
+    # subsection_headings: list[str],
+    system_prompt: str,
+    max_new_tokens: int = 300,
+):
+    """
+    Generate an Act-level retrieval summary.
+    """
+
+    act_headings_txt = format_headings("Act-level topics", act_headings or [])
+    # subsection_headings_txt = format_headings("Subordinate topics", subsection_headings or [])
+
+    user_content = f"""
+Jurisdiction: {jurisdiction}
+Act name: {act}
+
+{act_headings_txt}
+
+
+INSTRUCTIONS:
+- Write a high-level semantic summary of what this Act governs.
+- Describe regulatory scope, administering bodies, and types of powers or obligations.
+- Do NOT restate headings.
+- Do NOT quote section numbers.
+- Do NOT include procedural detail.
+- Use neutral statutory language.
+- Limit to 4-6 sentences.
+"""
 
     messages = [
-        {"role": "system", "content": system_prompt},
-        {
-            "role": "user",
-            "content": f"""
-Summarize the following statutory provision in 2–4 sentences.
-Retain defined terms and obligations verbatim where possible.
-Do not paraphrase section titles.
-
-Act Head: {act_head}
-Subsection Head: {subsection_head}
-
-Text:
-{text}
-"""
-        }
+        {"role": "system", "content": system_prompt.strip()},
+        {"role": "user", "content": user_content.strip()}
     ]
 
     prompt = tokenizer.apply_chat_template(
@@ -49,11 +82,14 @@ Text:
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
-            max_new_tokens=max_tokens,
-            temperature=0.1,
-            top_p=0.9,
-            do_sample=False
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            # temperature=0.0,
+            # top_p=1.0,
+            eos_token_id=tokenizer.eos_token_id
         )
 
     generated = outputs[0][inputs.input_ids.shape[-1]:]
-    return tokenizer.decode(generated, skip_special_tokens=True).strip()
+    text = tokenizer.decode(generated, skip_special_tokens=True).strip()
+
+    return text

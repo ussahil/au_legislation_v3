@@ -3,14 +3,27 @@ from pathlib import Path
 import json
 import torch
 
-SKIP_HEADS = {"short title", "commencement", "repeal"}
+# -----------------------------
+# System prompt (retrieval-focused)
+# -----------------------------
 
 SYSTEM_PROMPT = """
-Summarize statutory provisions.
-Preserve legal terms and defined concepts.
-Do not add interpretations or explanations.
-Use neutral statutory language.
+You generate retrieval-oriented legal summaries.
+
+Focus on:
+- regulatory scope
+- administering authorities
+- powers and functions
+- types of obligations and regulations
+
+Do NOT restate headings.
+Do NOT include procedural detail.
+Write 4–6 sentences maximum.
 """
+
+# -----------------------------
+# File iteration
+# -----------------------------
 
 def iter_json_files(root_folder):
     root = Path(root_folder)
@@ -19,89 +32,59 @@ def iter_json_files(root_folder):
             for json_file in act_dir.glob("*.json"):
                 yield act_dir.name, json_file
 
-def should_summarize(act_head):
-    if not act_head:
-        return True
-    ah = act_head.lower()
-    return not any(skip in ah for skip in SKIP_HEADS)
 
-def save_output(doc_id, json_path, records, out_root):
+
+def save_output(doc_id, json_path, record, out_root):
     out_dir = Path(out_root) / doc_id
     out_dir.mkdir(parents=True, exist_ok=True)
     out_file = out_dir / json_path.name
 
-    with open(out_file, "w") as f:
-        json.dump(records, f, indent=2)
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump(record, f, indent=2, ensure_ascii=False)
 
-def process_file(json_path,doc_id,out_root,save_every=10):
-    with open(json_path, "r") as f:
+# -----------------------------
+# Core processing (ONE Act)
+# -----------------------------
+
+def process_file(json_path, doc_id, out_root):
+    with open(json_path, "r", encoding="utf-8") as f:
         records = json.load(f)
+        record = records[0]
 
-    for i, r in enumerate(records):
-        act_head = r.get("ActHead")
-        subsection_head = r.get("SubsectionHead")
-        text = r.get("text", "").strip()
+    jurisdiction = record.get("jurisdiction")
+    act = record.get("act")
+    act_headings = record.get("act_headings", [])
+    country = record.get("country")
+    subsection_headings = record.get("subsection_headings", [])
 
-        # Administrative sections
-        if not should_summarize(act_head):
-            r["summary"] = {
-                "level": "subsection",
-                "category": "administrative",
-                "act_head": act_head,
-                "subsection_head": subsection_head,
-                "text": "Administrative provision."
-            }
-            continue
+    print(f"Summarizing Act: {act}")
 
-        # Very short sections
-        if len(text) < 120:
-            r["summary"] = {
-                "level": "subsection",
-                "category": "substantive",
-                "act_head": act_head,
-                "subsection_head": subsection_head,
-                "text": text
-            }
-            continue
+    summary_text = summarize(
+        jurisdiction=jurisdiction,
+        act=act,
+        act_headings=act_headings,
+        # subsection_headings=subsection_headings,
+        system_prompt=SYSTEM_PROMPT
+    )
 
-        # Setting limit to ensure higher ones don't tap me out
-        if len(text) > 6000:
-            text = text[:6000]
+    record["act_retrieval_summary"] = summary_text
 
-        summary_text = summarize(
-            text=text,
-            act_head=act_head,
-            subsection_head=subsection_head,
-            system_prompt=SYSTEM_PROMPT
-        )
-        print(
-        f"Summarizing record {i} | "
-        f"chars={len(text)} | "
-        f"act_head={act_head}")
+    save_output(doc_id, json_path, record, out_root)
 
+    torch.cuda.empty_cache()
 
-        r["summary"] = {
-            "level": "subsection",
-            "category": "substantive",
-            "act_head": act_head,
-            "subsection_head": subsection_head,
-            "text": summary_text
-        }
-        if i > 0 and i % save_every == 0:
-            save_output(doc_id, json_path, records, out_root)
-            print(f"  ✓ checkpoint saved at record {i}")
-
-        if i % 20 == 0:
-            torch.cuda.empty_cache()
-
-    return records
-
+    return record
 
 
 def run(root_folder, out_root):
     for doc_id, json_path in iter_json_files(root_folder):
         print(f"Processing {json_path}")
-        processed = process_file(json_path, doc_id, out_root)
-        save_output(doc_id, json_path, processed, out_root)
+        process_file(json_path, doc_id, out_root)
 
-run("../../data/final_json", "../../data/summaries_nsw_section_level")
+
+
+if __name__ == "__main__":
+    run(
+        "../../data/doc_level_outlines", # "../../data/final.json"
+        "../../data/summaries_doc_level_outlines"
+    )
