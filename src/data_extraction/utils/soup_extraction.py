@@ -102,6 +102,7 @@ def parse_html(html,output_val):
                     "text": text,
                     "jurisdiction": "FRL",
                     "act": act_name,
+                    "country":"AU"
                 })
             continue
 
@@ -120,6 +121,7 @@ def parse_html(html,output_val):
                     "text": text,
                     "jurisdiction": "FRL",
                     "act": act_name,
+                    "country":"AU"
                 })
             continue
         

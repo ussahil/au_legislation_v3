@@ -20,6 +20,7 @@ def extract_heads(json_path):
 
     jurisdiction = None 
     act_name = None 
+    country = None
 
     for r in records:
 
@@ -30,7 +31,8 @@ def extract_heads(json_path):
 
         act_head = r.get("ActHead")
         subsection_head = r.get("SubsectionHead")
-        country = r.get("country")
+        if country is None:
+            country = r.get("country")
 
         if act_head:
             act_heads[act_head.strip()] = None
