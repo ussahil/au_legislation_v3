@@ -8,12 +8,25 @@ def clean_text(t):
     return " ".join(t.split()).strip()
 
 
+def extract_act_title(soup):
+    if soup.title and soup.title.get_text(strip=True):
+        return clean_text(soup.title.get_text())
+    short_title_p = soup.find("p", class_="ShortT")
+    if short_title_p:
+        spans = short_title_p.find_all("span")
+        if spans:
+            title = "".join(span.get_text(strip=True) for span in spans)
+            return clean_text(title)
+
+    return None
+
 def parse_html(html,output_val):
     PARA_SUB_CLASSES = {"paragraphsub", "Definition", "notetext","notepara"}
     soup = BeautifulSoup(html, "html.parser")
 
     #Getting the actname for the specific document
-    act_name = clean_text(soup.title.get_text()) if soup.title else None
+    # act_name = clean_text(soup.title.get_text()) if soup.title else None
+    act_name = extract_act_title(soup)
 
     results = []
 
@@ -71,6 +84,7 @@ def parse_html(html,output_val):
                     "text": text,
                     "jurisdiction": "FRL",
                     "act": act_name,
+                    "country":"AU"
                 })
             continue
 

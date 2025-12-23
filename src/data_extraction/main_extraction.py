@@ -6,9 +6,6 @@ from utils.data_extraction import extractEPUB_to_html
 from utils.soup_extraction import extractHTML_json
 from utils.merging_json import merge_blocks
 
-
-
-
 def process_all_html(root_folder,output_val):
     for dir_name in os.listdir(root_folder):
         dir_path = os.path.join(root_folder,dir_name)
@@ -25,14 +22,17 @@ def process_all_html(root_folder,output_val):
 
 
 
-def process_final_json(root_folder,output_val):
+def process_final_json(root_folder,output_val): 
     """
-    Pass in the root folder and for every json file it will run merge block which will preprocess and paste cleaned file in final_json.
+     Pass in root folder and for every json file it will run merge block which will preprocess and paste cleaned file in final_json.
     """
     for file in os.listdir(root_folder):
         # merge_blocks(file)
         with open(f"{root_folder}/{file}") as w:
             blocks = json.load(w)
+            # print(blocks)
+            if blocks == [] or len(blocks) == 0 :
+                continue # Will this skip
         
         merge_data = merge_blocks(blocks)
 
@@ -47,7 +47,7 @@ def process_final_json(root_folder,output_val):
 
             print("Final final has been created",file)
 
-all_epub_files = os.listdir("../../data/raw_data")
+all_epub_files = os.listdir("../../data/raw_data") 
 for epub in all_epub_files:
     exact_file_path = f"../../data/raw_data/{epub}"
     extractEPUB_to_html(Path(exact_file_path),epub[:-5])

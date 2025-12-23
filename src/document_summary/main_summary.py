@@ -27,11 +27,8 @@ Write 4–6 sentences maximum.
 
 def iter_json_files(root_folder):
     root = Path(root_folder)
-    for act_dir in root.iterdir():
-        if act_dir.is_dir():
-            for json_file in act_dir.glob("*.json"):
-                yield act_dir.name, json_file
-
+    for json_file in root.glob("*.json"):
+        yield json_file   # CHANGED: yield only the file path
 
 
 def save_output(doc_id, json_path, record, out_root):
@@ -43,19 +40,24 @@ def save_output(doc_id, json_path, record, out_root):
         json.dump(record, f, indent=2, ensure_ascii=False)
 
 # -----------------------------
-# Core processing (ONE Act)
+# Core processing (ONE file)
 # -----------------------------
 
-def process_file(json_path, doc_id, out_root):
+def process_file(json_path, out_root):   # CHANGED: removed doc_id param
     with open(json_path, "r", encoding="utf-8") as f:
-        records = json.load(f)
-        record = records[0]
+        record = json.load(f)
+        # record = records[0]
+
+    # CHANGED: doc_id now comes from JSON
+    doc_id = record.get("doc_id")
+
+    if not doc_id:
+        raise ValueError(f"Missing doc_id in {json_path}")
 
     jurisdiction = record.get("jurisdiction")
     act = record.get("act")
     act_headings = record.get("act_headings", [])
     country = record.get("country")
-    subsection_headings = record.get("subsection_headings", [])
 
     print(f"Summarizing Act: {act}")
 
@@ -63,7 +65,6 @@ def process_file(json_path, doc_id, out_root):
         jurisdiction=jurisdiction,
         act=act,
         act_headings=act_headings,
-        # subsection_headings=subsection_headings,
         system_prompt=SYSTEM_PROMPT
     )
 
@@ -77,14 +78,13 @@ def process_file(json_path, doc_id, out_root):
 
 
 def run(root_folder, out_root):
-    for doc_id, json_path in iter_json_files(root_folder):
+    for json_path in iter_json_files(root_folder):   # CHANGED
         print(f"Processing {json_path}")
-        process_file(json_path, doc_id, out_root)
-
+        process_file(json_path, out_root)            # CHANGED
 
 
 if __name__ == "__main__":
     run(
-        "../../data/doc_level_outlines", # "../../data/final.json"
+        "../../data/doc_level_outlines",
         "../../data/summaries_doc_level_outlines"
     )
