@@ -1,10 +1,64 @@
 from pymilvus import MilvusClient , DataType
 import json 
 import os 
+import re 
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 from utils.collection import create_milvus_collection
 # from utils.search_doc import search_doc_level_query
+
+
+def act_summary_cleaner(headings:list[str]) -> list[str]:
+    """
+    Input Args : List
+    Output Args : List
+    Takes in a list and after it removes structural act from all of them using regex
+    """
+    if not headings:
+        return []
+
+    REMOVE_EXACT = {
+        "short title",
+        "commencement",
+        "definitions",
+        "interpretation",
+        "repeal",
+        "application",
+        "regulations",
+        "rules",
+    }
+    REMOVE_CONTAINS = {
+         "schedule",
+        "note",
+        "transitional",
+        "saving",
+        "repealed",
+    }
+
+    cleaned = []
+    for h in headings:
+        if not h or not isinstance(h,str):
+            continue
+        # normalize
+        text = h.lower().strip()
+        
+        #  Best to remove subsection numbers as all docs will have them
+        text = re.sub(r"^\d+[a-zA-Z\-]*\s*", "", text)
+
+        # Remove trailing puntuation
+        text = re.sub(r"[.:;]+$", "", text)
+        text = re.sub(r"\(.*?\)", "", text).strip()
+
+        # Exact match Removal
+        if text in REMOVE_EXACT:
+            continue
+
+        if any(pattern in text for pattern in REMOVE_CONTAINS):
+            continue
+
+        cleaned.append(text)
+    return list(dict.fromkeys(cleaned)) #Dedupe to clean it all..
+
 
 
 client = MilvusClient(
@@ -54,6 +108,10 @@ def extract_embed_doc_level_summaries():
             doc_id = doc.get("doc_id")
             summary_text = doc.get("act_retrieval_summary")
             country = doc.get("country")
+            act_headings = doc.get("act_headings")
+            cleaned_act_headings = act_summary_cleaner(act_headings)
+            combined =  " ".join(cleaned_act_headings) # This is working now I need to work on cleaning staturtary obligations
+            
 
             if not summary_text:
                 print(f"{act} , {doc_id} , This is missing summary text data")
@@ -62,20 +120,32 @@ def extract_embed_doc_level_summaries():
             pk = f"{jurisdiction}::{act}::{doc_id}"
 
             # existing = client.get(collection_name=DOC_LEVEL, ids=[pk])
+            
 
             # print("PK:", pk, "EXISTS:", bool(existing))
-            embedding = model.encode(summary_text, normalize_embeddings=True).tolist()
+            summary_embedding = model.encode(summary_text, normalize_embeddings=True).tolist()
 
-            # if client.get(collection_name=DOC_LEVEL, ids=[pk]):
-            #     continue
+            if combined.strip():
+                # Heading embeddinsg 
+                heading_embeddings = model.encode(
+                    combined,
+                    normalize_embeddings=True
+                ).tolist()
+            else:
+                # Fallback
+                heading_embeddings = summary_embedding
+
+            if client.get(collection_name=DOC_LEVEL, ids=[pk]):
+                continue
             
             records.append({
                 "id":pk,
-                "text_summary_embedding": embedding,
-                "act": act,
+                "act": act,                
+                "summary_text": summary_text,
                 "jurisdiction":jurisdiction,
                 "country": country,
-                "summary_text": summary_text,
+                "text_summary_embedding": summary_embedding,
+                "heading_embedding": heading_embeddings
             })
             # print(records)
     return records 
@@ -92,7 +162,15 @@ try:
         client.flush(collection_name=DOC_LEVEL)
 except Exception as e:
     print("Insert Error probably same val error",e)
-
+# try:
+#     if records:
+#         client.insert(
+#             collection_name=DOC_LEVEL,
+#             data = records 
+#         )
+#         client.flush(collection_name=DOC_LEVEL)
+# except Exception as e:
+#     print("Insert Error probably same val error",e)
 # client.insert(collection_name=DOC_LEVEL,) 
 
 # Level 1 Search 

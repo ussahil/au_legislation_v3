@@ -48,12 +48,22 @@ def create_milvus_collection(collection_LEVEL,client):
             datatype=DataType.FLOAT_VECTOR,
             dim=1024  # 
         )
+        schema.add_field(
+            field_name="heading_embedding",
+            datatype=DataType.FLOAT_VECTOR,
+            dim=1024
+        )
 
         # Prepare Index Paramaters
         index_params = client.prepare_index_params()
 
         index_params.add_index(
             field_name="text_summary_embedding", 
+            index_type="AUTOINDEX",
+            metric_type="COSINE"
+        )
+        index_params.add_index(
+            field_name="heading_embedding",
             index_type="AUTOINDEX",
             metric_type="COSINE"
         )
