@@ -4,60 +4,11 @@ import os
 import re 
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
-from utils.collection import create_milvus_collection
+from src.milvus.schema.collection import create_milvus_collection
+from src.milvus.schema.para_collection import create_milvus_collection_para
 # from utils.search_doc import search_doc_level_query
+from utils.helper_cleaner_summary import act_summary_cleaner
 
-
-def act_summary_cleaner(headings:list[str]) -> list[str]:
-    """
-    Input Args : List
-    Output Args : List
-    Takes in a list and after it removes structural act from all of them using regex
-    """
-    if not headings:
-        return []
-
-    REMOVE_EXACT = {
-        "short title",
-        "commencement",
-        "definitions",
-        "interpretation",
-        "repeal",
-        "application",
-        "regulations",
-        "rules",
-    }
-    REMOVE_CONTAINS = {
-         "schedule",
-        "note",
-        "transitional",
-        "saving",
-        "repealed",
-    }
-
-    cleaned = []
-    for h in headings:
-        if not h or not isinstance(h,str):
-            continue
-        # normalize
-        text = h.lower().strip()
-        
-        #  Best to remove subsection numbers as all docs will have them
-        text = re.sub(r"^\d+[a-zA-Z\-]*\s*", "", text)
-
-        # Remove trailing puntuation
-        text = re.sub(r"[.:;]+$", "", text)
-        text = re.sub(r"\(.*?\)", "", text).strip()
-
-        # Exact match Removal
-        if text in REMOVE_EXACT:
-            continue
-
-        if any(pattern in text for pattern in REMOVE_CONTAINS):
-            continue
-
-        cleaned.append(text)
-    return list(dict.fromkeys(cleaned)) #Dedupe to clean it all..
 
 
 
@@ -66,6 +17,7 @@ client = MilvusClient(
 )
 
 DOC_LEVEL =  "DOC_LEVEL"
+PARA_LEVEL = "PARA_LEVEL"
 
 
 user_query = "Tell me about indexation inside Fair Work Act? "
@@ -74,6 +26,7 @@ user_query = "Tell me about indexation inside Fair Work Act? "
 BASE_DIR = "../../data/summaries_doc_level_outlines"
 
 create_milvus_collection(DOC_LEVEL,client)
+create_milvus_collection_para(collection_LEVEL=PARA_LEVEL,client=client)
     
    
 # Load in 8 bit model
@@ -120,6 +73,8 @@ def extract_embed_doc_level_summaries():
             pk = f"{jurisdiction}::{act}::{doc_id}"
 
             # existing = client.get(collection_name=DOC_LEVEL, ids=[pk])
+            if client.get(collection_name=DOC_LEVEL, ids=[pk]):
+                continue
             
 
             # print("PK:", pk, "EXISTS:", bool(existing))
@@ -135,8 +90,7 @@ def extract_embed_doc_level_summaries():
                 # Fallback
                 heading_embeddings = summary_embedding
 
-            if client.get(collection_name=DOC_LEVEL, ids=[pk]):
-                continue
+            
             
             records.append({
                 "id":pk,
@@ -162,18 +116,3 @@ try:
         client.flush(collection_name=DOC_LEVEL)
 except Exception as e:
     print("Insert Error probably same val error",e)
-# try:
-#     if records:
-#         client.insert(
-#             collection_name=DOC_LEVEL,
-#             data = records 
-#         )
-#         client.flush(collection_name=DOC_LEVEL)
-# except Exception as e:
-#     print("Insert Error probably same val error",e)
-# client.insert(collection_name=DOC_LEVEL,) 
-
-# Level 1 Search 
-
-# print(search_doc_level_query(client,user_query,DOC_LEVEL,model))
-

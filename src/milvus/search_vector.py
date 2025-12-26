@@ -4,7 +4,7 @@ import os
 from sentence_transformers import SentenceTransformer
 from sentence_transformers import CrossEncoder
 from dotenv import load_dotenv
-from milvus.utils.collection import create_milvus_collection
+# from src.milvus.schema.collection import create_milvus_collection
 from milvus.utils.search_doc import search_doc_level_query,rerank_with_bge
 
 # from utils.collection import create_milvus_collection
