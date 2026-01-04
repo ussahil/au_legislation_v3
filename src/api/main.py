@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 # from inference.pinecone_v2 import retriever
-from src.milvus.search_vector import search_doc_level_query,rerank_with_bge
+from src.milvus.utils.search_doc import search_doc_level_query,rerank_with_bge, search_para_level_query
+from src.milvus.constants import  PARA_LEVEL
 from pymilvus import MilvusClient , DataType
 import json 
 import os 
@@ -46,11 +47,29 @@ async def chat_endpoint(payload:Query):
     COLLECTION_LEVEL=DOC_LEVEL,
     model=model)
 
-    final_results = rerank_with_bge(
+    inital_results = rerank_with_bge(
         user_query=payload.query,
         candidates=candidates,
         reranker=reranker,
         top_k=5
     )
+    id_for_act = [item['id_for_act'] for item in inital_results]
+    acts_selected = [item['act'] for item in inital_results]
 
-    return {"answer":final_results}
+    client.load_collection(PARA_LEVEL)
+
+    final_results =  search_para_level_query(client=client,
+                            user_query=payload.query,
+                            COLLECTION_LEVEL=PARA_LEVEL,
+                            model=model,
+                            reranker=reranker,
+                            id_for_act=id_for_act,
+                            jurisdiction="FRL",
+                            country="AU")
+
+    return {"acts_selected":acts_selected,"answer":final_results}
+    
+
+
+# async def low_level_endpoint(payload:Query)
+   
