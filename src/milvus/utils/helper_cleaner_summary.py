@@ -26,6 +26,9 @@ def act_summary_cleaner(headings:list[str]) -> list[str]:
         "saving",
         "repealed",
     }
+    REMOVE_WORDS_REGEX = re.compile(
+        r"\b(" + "|".join(REMOVE_CONTAINS) + r")\b"
+    )
 
     cleaned = []
     for h in headings:
@@ -45,7 +48,7 @@ def act_summary_cleaner(headings:list[str]) -> list[str]:
         if text in REMOVE_EXACT:
             continue
 
-        if any(pattern in text for pattern in REMOVE_CONTAINS):
+        if REMOVE_WORDS_REGEX.search(text):
             continue
 
         cleaned.append(text)

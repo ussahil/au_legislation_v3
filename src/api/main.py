@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 # from inference.pinecone_v2 import retriever
-from milvus.search_vector import search_doc_level_query,rerank_with_bge
+from src.milvus.search_vector import search_doc_level_query,rerank_with_bge
 from pymilvus import MilvusClient , DataType
 import json 
 import os 

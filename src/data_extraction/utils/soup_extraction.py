@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import re
 from pathlib import Path
 import json 
+import base64
 
 def clean_text(t):
     """Normalize whitespace consistently."""
@@ -19,6 +20,11 @@ def extract_act_title(soup):
             return clean_text(title)
 
     return None
+
+def make_safe_id(prefix: str, act_name: str, output_val: str) -> str:
+    raw = f"{prefix}::{act_name}::{output_val}"
+    encoded = base64.urlsafe_b64encode(raw.encode()).decode()
+    return encoded
 
 def parse_html(html,output_val):
     PARA_SUB_CLASSES = {"paragraphsub", "Definition", "notetext","notepara"}
@@ -77,7 +83,8 @@ def parse_html(html,output_val):
             if text:
                 results.append({
                     "doc_id": output_val,
-                    "id": f"A{act_count}-S{subsection_count}",
+                    "id": make_safe_id("FRL", act_name, output_val),
+                    "id_raw":f"{'FRL'}::{act_name}::{output_val}",
                     "ActHead": current_act,
                     "SubsectionHead": current_subsection,
                     "type": "subsection",
@@ -95,7 +102,8 @@ def parse_html(html,output_val):
             if text:
                 results.append({
                     "doc_id":output_val,
-                    "id": f"A{act_count}-S{subsection_count}-P{paragraph_count}-PS{paragraph_sub_count}",
+                    "id": make_safe_id("FRL", act_name, output_val),
+                    "id_raw":f"{'FRL'}::{act_name}::{output_val}",
                     "ActHead": current_act,
                     "SubsectionHead": current_subsection,
                     "type": "paragraphsub",
@@ -114,7 +122,8 @@ def parse_html(html,output_val):
             if text:
                 results.append({
                     "doc_id":output_val,
-                    "id": f"A{act_count}-S{subsection_count}-P{paragraph_count}-PS{paragraph_sub_count}",
+                    "id": make_safe_id("FRL", act_name, output_val),
+                    "id_raw":f"{'FRL'}::{act_name}::{output_val}",
                     "ActHead": current_act,
                     "SubsectionHead": current_subsection,
                     "type": "paragraph",

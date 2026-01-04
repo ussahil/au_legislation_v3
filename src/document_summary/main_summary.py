@@ -56,6 +56,7 @@ def process_file(json_path, out_root):   # CHANGED: removed doc_id param
 
     jurisdiction = record.get("jurisdiction")
     act = record.get("act")
+    id = record.get("id")
     act_headings = record.get("act_headings", [])
     country = record.get("country")
 

@@ -7,13 +7,15 @@ from dotenv import load_dotenv
 
 
 def create_milvus_collection(collection_LEVEL,client):
-    if not client.has_collection(collection_name=collection_LEVEL):
+    if  client.has_collection(collection_name=collection_LEVEL):
+        return
+    else: 
 
         schema = MilvusClient.create_schema()
 
         # Add primary field
         schema.add_field(
-            field_name="id",
+            field_name="id_for_act",
             datatype=DataType.VARCHAR,
             is_primary=True,
             auto_id = False,

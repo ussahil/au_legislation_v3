@@ -21,6 +21,7 @@ def extract_heads(json_path):
     jurisdiction = None 
     act_name = None 
     country = None
+    id = None 
 
     for r in records:
 
@@ -28,6 +29,9 @@ def extract_heads(json_path):
             jurisdiction = r.get("jurisdiction")
         if act_name is None :
             act_name = r.get("act")
+        
+        if id is None:
+            id = r.get("id")
 
         act_head = r.get("ActHead")
         subsection_head = r.get("SubsectionHead")
@@ -43,18 +47,20 @@ def extract_heads(json_path):
     return (
         list(act_heads.keys()), 
         list(subsection_heads.keys()),
+        id,
         jurisdiction,
         act_name,
         country)
 
 
-def save_doc_outline(doc_id, act_heads, subsection_heads, jurisdiction,act_name,out_root,country):
+def save_doc_outline(doc_id, act_heads, subsection_heads,id, jurisdiction,act_name,out_root,country):
     out_dir = Path(out_root)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     out_file = out_dir / f"{doc_id}_outline.json"
     data = {
         "doc_id": doc_id,
+        "id":id,
         "jurisdiction": jurisdiction,
         "act": act_name,
         "country": country,
@@ -70,8 +76,8 @@ def run(root_folder, out_root):
     for doc_id, json_path in iter_json_files(root_folder):
         print(f"Processing {json_path}")
 
-        act_heads, subsection_heads,jurisdiction,act_name,country = extract_heads(json_path)
-        save_doc_outline(doc_id, act_heads, subsection_heads,jurisdiction=jurisdiction,act_name=act_name,out_root=out_root,country=country)
+        act_heads, subsection_heads,id,jurisdiction,act_name,country = extract_heads(json_path)
+        save_doc_outline(doc_id, act_heads, subsection_heads,id=id,jurisdiction=jurisdiction,act_name=act_name,out_root=out_root,country=country)
 
 
 run("../../data/final_json", "../../data/doc_level_outlines")
