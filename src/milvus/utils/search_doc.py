@@ -139,7 +139,7 @@ def search_para_level_query(client,
             "ActHead": hit.entity.get("ActHead"),
             "SubsectionHead": hit.entity.get("SubsectionHead"),
             "text": hit.entity.get("text"),
-            "summary_text": hit.entity.get("text")
+            "summary_text": hit.entity.get("text") # The only reason this was added was cuz of how I created by function bge_reranker ^_^
         })
     # Applying reranking now
     reranked_results = rerank_with_bge(
